@@ -11,51 +11,52 @@ defmodule EctoCursorBasedStream do
       end
   """
 
+  @type cursor_based_stream_opts :: [
+          {:chunk_size, integer()}
+          | {:cursor, String.t() | integer()}
+          | {:cursor_field, atom()}
+        ]
+
+  @doc """
+  Returns a lazy enumerable that emits all entries from the data store
+  matching the given query.
+
+  In contrast to `Ecto.Repo.stream/2`,
+  this will not use database mechanisms (e.g. database transactions) to stream the rows.
+
+  It does so by sorting all the rows by `options[:cursor_field]`
+  and iterating over them in chunks of size `options[:max_rows]`.
+
+  ## Options
+
+  * `:cursor_field` - the field by which all rows should be iterated.
+
+    **This field must have unique values. (Otherwise, some rows may get skipped.)**
+
+    For performance reasons, we recommend that you have an index on that field. Defaults to `:id`.
+
+  * `:after_cursor` - the value of the `:cursor_field` must be greater than it.
+
+    Useful when you want to continue streaming from a certain point.
+    Any rows with value equal or smaller than this value will not be included.
+
+    Defaults to `nil`. (All rows will be included.)
+
+  * `:max_rows` - The number of rows to load from the database as we stream.
+
+    Defaults to 500.
+
+  ## Example
+
+      Post
+      |> MyRepo.cursor_based_stream(chunk_size: 100)
+      |> Stream.each(...)
+      |> Stream.run()
+  """
+  @callback cursor_based_stream(Ecto.Queryable.t(), cursor_based_stream_opts) :: Enum.t()
+
   defmacro __using__(_) do
     quote do
-      @type cursor_based_stream_opts :: [
-              {:chunk_size, integer()}
-              | {:cursor, String.t() | integer()}
-              | {:cursor_field, atom()}
-            ]
-
-      @doc """
-      Returns a lazy enumerable that emits all entries from the data store
-      matching the given query.
-
-      In contrast to `Ecto.Repo.stream/2`,
-      this will not use database mechanisms (e.g. database transactions) to stream the rows.
-
-      It does so by sorting all the rows by `options[:cursor_field]`
-      and iterating over them in chunks of size `options[:max_rows]`.
-
-      ## Options
-
-      * `:cursor_field` - the field by which all rows should be iterated.
-
-      **This field must have unique values. (Otherwise, some rows may get skipped.)**
-
-      For performance reasons, we recommend that you have an index on that field. Defaults to `:id`.
-
-      * `:after_cursor` - the value of the `:cursor_field` must be greater than it.
-      Useful when you want to continue streaming from a certain point.
-      Any rows with value equal or smaller than this value will not be included.
-
-      Defaults to `nil`. (All rows will be included.)
-
-      * `:max_rows` - The number of rows to load from the database as we stream.
-      Defaults to 500.
-
-      ## Example
-
-          # Iterate over all posts
-          Post
-          |> MyRepo.cursor_based_stream(chunk_size: 100)
-          |> Stream.each(...)
-          |> Stream.run()
-      """
-      @spec cursor_based_stream(Ecto.Queryable.t(), cursor_based_stream_opts) ::
-              Enum.t()
       def cursor_based_stream(queryable, options \\ []) do
         import Ecto.Query
 
