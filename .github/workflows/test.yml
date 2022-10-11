@@ -1,5 +1,6 @@
 on:
   push:
+    branches: ["**"]
     tags-ignore: ["**"]
   workflow_dispatch:
 
@@ -13,16 +14,16 @@ jobs:
     strategy:
       matrix:
         elixir: ["1.13.0"]
-        otp: ["23.0"]
+        otp: ["24.2"]
 
     services:
       db:
         image: postgres:12-alpine
-        ports: ["5432:5432"]
+        ports: ["54323:5432"]
         env:
-          POSTGRES_USER: test
-          POSTGRES_PASSWORD: test
-          POSTGRES_DB: test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
         options: >-
           --health-cmd pg_isready
           --health-interval 10s
