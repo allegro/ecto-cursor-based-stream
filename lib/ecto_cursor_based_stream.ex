@@ -1,7 +1,7 @@
 defmodule EctoCursorBasedStream do
   @moduledoc """
   Use this module in any module that uses `Ecto.Repo`,
-  to enrich it with `cursor_based_stream\2` function.
+  to enrich it with `cursor_based_stream/2` function.
 
   Example:
 
