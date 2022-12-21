@@ -1,5 +1,7 @@
 # EctoCursorBasedStream
 
+[![Build Status](https://github.com/elixir-ecto/ecto/workflows/CI/badge.svg)](https://github.com/allegro/ecto-cursor-based-stream/actions) [![Hex.pm](https://img.shields.io/hexpm/v/ecto_cursor_based_stream.svg)](https://hex.pm/packages/ecto_cursor_based_stream) [![Documentation](https://img.shields.io/badge/documentation-gray)](https://hexdocs.pm/ecto_cursor_based_stream/)
+
 Cursor-based streaming of Ecto records that doesn't require database transaction.
 
 Gives you a `cursor_based_stream/2` function that mimics `Ecto.Repo.stream/2` interface.
@@ -16,7 +18,7 @@ The only limitation is that you have to supply a _cursor column_ (by passing `op
 
 ## Usage
 
-Add `ecto_cursor_based_stream` to your list of dependencies in `mix.exs`:
+1. Add `ecto_cursor_based_stream` to your list of dependencies in `mix.exs`:
 
 ```elixir
 def deps do
@@ -26,7 +28,7 @@ def deps do
 end
 ```
 
-Then add `use EctoCursorBasedStream` to the module that `use Ecto.Repo`:
+2. Add `use EctoCursorBasedStream` to the module that uses `Ecto.Repo`:
 
 ```elixir
 defmodule MyRepo do
@@ -35,7 +37,7 @@ defmodule MyRepo do
 end
 ```
 
-Then stream the rows like this:
+3. Stream the rows using `cursor_based_stream/2`:
 
 ```elixir
 Post
@@ -44,9 +46,12 @@ Post
 |> Stream.run()
 ```
 
-Docs can be found at <https://hexdocs.pm/ecto_cursor_based_stream>.
+## Important links
 
-## Development
+- [Documentation](https://hexdocs.pm/ecto_cursor_based_stream)
+- [Examples](/test/ecto_cursor_based_stream_test.exs)
+
+## Contributing
 
 ### Running tests
 
