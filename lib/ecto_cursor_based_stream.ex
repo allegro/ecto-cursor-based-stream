@@ -1,6 +1,6 @@
 defmodule EctoCursorBasedStream do
   @moduledoc """
-  Use this module in any module that uses `Ecto.Repo`,
+  Use this module in any module that uses `Ecto.Repo`
   to enrich it with `cursor_based_stream/2` function.
 
   Example:
@@ -9,6 +9,11 @@ defmodule EctoCursorBasedStream do
         use Ecto.Repo
         use EctoCursorBasedStream
       end
+
+      MyUser
+      |> MyRepo.cursor_based_stream(chunk_size: 100)
+      |> Stream.each(...)
+      |> Stream.run()
   """
 
   @type cursor_based_stream_opts :: [
@@ -18,7 +23,7 @@ defmodule EctoCursorBasedStream do
         ]
 
   @doc """
-  Returns a lazy enumerable that emits all entries from the data store
+  Return a lazy enumerable that emits all entries from the data store
   matching the given query.
 
   In contrast to `Ecto.Repo.stream/2`,
@@ -48,7 +53,7 @@ defmodule EctoCursorBasedStream do
 
   ## Example
 
-      Post
+      MyUser
       |> MyRepo.cursor_based_stream(chunk_size: 100)
       |> Stream.each(...)
       |> Stream.run()
@@ -63,6 +68,7 @@ defmodule EctoCursorBasedStream do
     end
   end
 
+  @doc false
   def call(repo, queryable, options \\ []) do
     %{max_rows: max_rows, after_cursor: after_cursor, cursor_field: cursor_field} =
       parse_options(options)
