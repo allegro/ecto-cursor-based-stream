@@ -62,6 +62,9 @@ defmodule EctoCursorBasedStream do
 
   defmacro __using__(_) do
     quote do
+      @behaviour EctoCursorBasedStream
+
+      @impl EctoCursorBasedStream
       def cursor_based_stream(queryable, options \\ []) do
         EctoCursorBasedStream.call(__MODULE__, queryable, options)
       end
