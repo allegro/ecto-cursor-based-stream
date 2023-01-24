@@ -58,35 +58,57 @@ defmodule EctoCursorBasedStream do
   defmacro __using__(_) do
     quote do
       def cursor_based_stream(queryable, options \\ []) do
-        import Ecto.Query
-
-        max_rows = Keyword.get(options, :max_rows, 500)
-        after_cursor = Keyword.get(options, :after_cursor)
-        cursor_field = Keyword.get(options, :cursor_field, :id)
-
-        Stream.unfold(after_cursor, fn cursor ->
-          rows =
-            queryable
-            |> order_by([o], asc: ^cursor_field)
-            |> then(fn q ->
-              if cursor do
-                q |> where([r], field(r, ^cursor_field) > ^cursor)
-              else
-                q
-              end
-            end)
-            |> limit(^max_rows)
-            |> all()
-
-          if Enum.empty?(rows) do
-            nil
-          else
-            next_cursor = rows |> List.last() |> Map.fetch!(cursor_field)
-            {rows, next_cursor}
-          end
-        end)
-        |> Stream.flat_map(& &1)
+        EctoCursorBasedStream.call(__MODULE__, queryable, options)
       end
     end
+  end
+
+  def call(repo, queryable, options \\ []) do
+    %{max_rows: max_rows, after_cursor: after_cursor, cursor_field: cursor_field} =
+      parse_options(options)
+
+    Stream.unfold(after_cursor, fn cursor ->
+      case get_rows(repo, queryable, cursor_field, cursor, max_rows) do
+        [] ->
+          nil
+
+        rows ->
+          next_cursor = get_last_row_cursor(rows, cursor_field)
+          {rows, next_cursor}
+      end
+    end)
+    |> Stream.flat_map(& &1)
+  end
+
+  defp parse_options(options) do
+    max_rows = Keyword.get(options, :max_rows, 500)
+    after_cursor = Keyword.get(options, :after_cursor)
+    cursor_field = Keyword.get(options, :cursor_field, :id)
+
+    %{
+      max_rows: max_rows,
+      after_cursor: after_cursor,
+      cursor_field: cursor_field
+    }
+  end
+
+  defp get_rows(repo, query, cursor_field, cursor, max_rows) do
+    import Ecto.Query
+
+    query
+    |> order_by([o], asc: ^cursor_field)
+    |> then(fn query ->
+      if is_nil(cursor) do
+        query
+      else
+        query |> where([r], field(r, ^cursor_field) > ^cursor)
+      end
+    end)
+    |> limit(^max_rows)
+    |> repo.all()
+  end
+
+  defp get_last_row_cursor(rows, cursor_field) do
+    rows |> List.last() |> Map.fetch!(cursor_field)
   end
 end
