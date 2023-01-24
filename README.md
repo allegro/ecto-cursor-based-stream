@@ -23,7 +23,7 @@ Only limitation is that you have to supply a _cursor column_ (by passing `opts[:
 ```elixir
 def deps do
   [
-    {:ecto_cursor_based_stream, "~> 0.1.0"}
+    {:ecto_cursor_based_stream, "~> 1.0.0"}
   ]
 end
 ```
