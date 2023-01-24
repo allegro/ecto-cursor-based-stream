@@ -35,11 +35,11 @@ defmodule EctoCursorBasedStream.MixProject do
 
   defp deps do
     [
+      {:ecto_sql, "~> 3.0"},
       {:dialyxir, "~> 1.0", only: [:dev, :test], runtime: false},
       {:credo, "~> 1.6", only: [:dev, :test], runtime: false},
       {:ex_doc, "~> 0.27", only: :dev, runtime: false},
-      {:ecto_sql, "~> 3.9.0", only: [:test]},
-      {:postgrex, "~> 0.16.0", only: [:test]}
+      {:postgrex, "~> 0.16", only: [:test]}
     ]
   end
 
