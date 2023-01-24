@@ -11,8 +11,12 @@ defmodule EctoCursorBasedStream.MixProject do
       description:
         "Cursor-based streaming of Ecto records that doesn't require database transaction.",
       package: [
-        licenses: ["MIT"],
-        links: %{"GitHub" => "https://github.com/allegro/ecto-cursor-based-stream"}
+        files: ["lib", ".formatter.exs", "mix.exs", "README*", "LICENSE*"],
+        licenses: ["Apache-2.0"],
+        links: %{
+          "Source code" => "https://github.com/allegro/ecto-cursor-based-stream",
+          "Documentation" => "https://hexdocs.pm/ecto_cursor_based_stream"
+        }
       ],
       docs: [
         main: "readme",
