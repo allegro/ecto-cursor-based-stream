@@ -2,19 +2,19 @@
 
 [![Build Status](https://github.com/elixir-ecto/ecto/workflows/CI/badge.svg)](https://github.com/allegro/ecto-cursor-based-stream/actions) [![Hex.pm](https://img.shields.io/hexpm/v/ecto_cursor_based_stream.svg)](https://hex.pm/packages/ecto_cursor_based_stream) [![Documentation](https://img.shields.io/badge/documentation-gray)](https://hexdocs.pm/ecto_cursor_based_stream/)
 
-Cursor-based streaming of Ecto records that doesn't require database transaction.
+Cursor-based streaming of Ecto records, that does not require database transaction.
 
-Gives you a `cursor_based_stream/2` function that mimics `Ecto.Repo.stream/2` interface.
+Gives you a `cursor_based_stream/2` function that mimics [`Ecto.Repo.stream/2`](https://hexdocs.pm/ecto/Ecto.Repo.html#c:stream/2) interface.
 
-Advantages in comparison to standard `Ecto.Repo.stream/2`:
+Advantages in comparison to the standard `Ecto.Repo.stream/2`:
 
 - streaming can be stopped and continued at any point (by passing `opts[:cursor]`),
 - works with tables that have milions of records.
 
-The only limitation is that you have to supply a _cursor column_ (by passing `opts[:cursor_column]`, defaults to `:id`). Such a column:
+Only limitation is that you have to supply a _cursor column_ (by passing `opts[:cursor_column]`, defaults to `:id`). Such a column:
 
 - must have unique values,
-- should have a database index. (So that sorting by it is instant.)
+- should have a database index. (So that sorting by it, and returning a number of rows larger than `x` is a performant operation.)
 
 ## Usage
 
