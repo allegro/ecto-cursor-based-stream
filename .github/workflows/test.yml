@@ -4,9 +4,6 @@ on:
     tags-ignore: ["**"]
   workflow_dispatch:
 
-env:
-  MIX_ENV: test
-
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -57,6 +54,7 @@ jobs:
           mix local.hex --force
           mix deps.get
           mix deps.compile
+          MIX_ENV=test mix deps.compile
           mix dialyzer --plt
 
       - name: Audit dependencies
@@ -66,13 +64,15 @@ jobs:
         run: mix format --check-formatted
 
       - name: Compile project without warnings
-        run: mix compile --warnings-as-errors
+        run: |
+          mix compile --warnings-as-errors
+          MIX_ENV=test mix compile --warnings-as-errors
 
       - name: Run Credo
         run: mix credo
 
       - name: Run Dialyzer
-        run: mix dialyzer --no-check --halt-exit-status
+        run: mix dialyzer --no-check
 
       - name: Run tests
         run: mix test
