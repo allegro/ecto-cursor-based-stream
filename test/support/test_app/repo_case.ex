@@ -14,22 +14,24 @@ defmodule TestApp.RepoCase do
 
   use ExUnit.CaseTemplate
 
+  alias Ecto.Adapters.SQL.Sandbox
+
   using do
     quote do
       import Ecto
       import Ecto.Changeset
       import Ecto.Query
 
-      alias TestApp.User
       alias TestApp.Repo
+      alias TestApp.User
     end
   end
 
   setup tags do
-    :ok = Ecto.Adapters.SQL.Sandbox.checkout(TestApp.Repo)
+    :ok = Sandbox.checkout(TestApp.Repo)
 
     unless tags[:async] do
-      Ecto.Adapters.SQL.Sandbox.mode(TestApp.Repo, {:shared, self()})
+      Sandbox.mode(TestApp.Repo, {:shared, self()})
     end
 
     :ok
