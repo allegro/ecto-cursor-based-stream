@@ -4,15 +4,19 @@ defmodule EctoCursorBasedStream.MixProject do
   def project do
     [
       app: :ecto_cursor_based_stream,
-      version: "0.1.0",
+      version: "1.0.0",
       elixir: "~> 1.13",
       elixirc_paths: elixirc_paths(Mix.env()),
       start_permanent: Mix.env() == :prod,
       description:
         "Cursor-based streaming of Ecto records that doesn't require database transaction.",
       package: [
-        licenses: ["MIT"],
-        links: %{"GitHub" => "https://github.com/allegro/ecto-cursor-based-stream"}
+        files: ["lib", ".formatter.exs", "mix.exs", "README*", "LICENSE*"],
+        licenses: ["Apache-2.0"],
+        links: %{
+          "Source code" => "https://github.com/allegro/ecto-cursor-based-stream",
+          "Documentation" => "https://hexdocs.pm/ecto_cursor_based_stream"
+        }
       ],
       docs: [
         main: "readme",

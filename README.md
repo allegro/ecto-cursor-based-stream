@@ -4,7 +4,7 @@
 
 Cursor-based streaming of Ecto records, that does not require database transaction.
 
-Gives you a `cursor_based_stream/2` function that mimics [`Ecto.Repo.stream/2`](https://hexdocs.pm/ecto/Ecto.Repo.html#c:stream/2) interface.
+Gives you a [`cursor_based_stream/2`](https://hexdocs.pm/ecto_cursor_based_stream/EctoCursorBasedStream.html#c:cursor_based_stream/2) function that mimics [`Ecto.Repo.stream/2`](https://hexdocs.pm/ecto/Ecto.Repo.html#c:stream/2) interface.
 
 Advantages in comparison to the standard `Ecto.Repo.stream/2`:
 
@@ -23,7 +23,7 @@ Only limitation is that you have to supply a _cursor column_ (by passing `opts[:
 ```elixir
 def deps do
   [
-    {:ecto_cursor_based_stream, "~> 0.1.0"}
+    {:ecto_cursor_based_stream, "~> 1.0.0"}
   ]
 end
 ```
@@ -46,7 +46,7 @@ Post
 |> Stream.run()
 ```
 
-## Important links
+## Useful links
 
 - [Documentation](https://hexdocs.pm/ecto_cursor_based_stream)
 - [Examples](/test/ecto_cursor_based_stream_test.exs)
