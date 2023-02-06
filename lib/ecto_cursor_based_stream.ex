@@ -17,8 +17,8 @@ defmodule EctoCursorBasedStream do
   """
 
   @type cursor_based_stream_opts :: [
-          {:chunk_size, integer()}
-          | {:cursor, String.t() | integer()}
+          {:max_rows, integer()}
+          | {:after_cursor, String.t() | integer()}
           | {:cursor_field, atom()}
         ]
 
