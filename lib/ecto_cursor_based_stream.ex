@@ -11,14 +11,14 @@ defmodule EctoCursorBasedStream do
       end
 
       MyUser
-      |> MyRepo.cursor_based_stream(chunk_size: 100)
+      |> MyRepo.cursor_based_stream(max_rows: 100)
       |> Stream.each(...)
       |> Stream.run()
   """
 
   @type cursor_based_stream_opts :: [
-          {:chunk_size, integer()}
-          | {:cursor, String.t() | integer()}
+          {:max_rows, integer()}
+          | {:after_cursor, String.t() | integer()}
           | {:cursor_field, atom()}
         ]
 
@@ -54,7 +54,7 @@ defmodule EctoCursorBasedStream do
   ## Example
 
       MyUser
-      |> MyRepo.cursor_based_stream(chunk_size: 100)
+      |> MyRepo.cursor_based_stream(max_rows: 100)
       |> Stream.each(...)
       |> Stream.run()
   """
