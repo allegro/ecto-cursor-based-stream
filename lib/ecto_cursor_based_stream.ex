@@ -1,4 +1,6 @@
 defmodule EctoCursorBasedStream do
+  import Ecto.Query
+
   @moduledoc """
   Use this module in any module that uses `Ecto.Repo`
   to enrich it with `cursor_based_stream/2` function.
@@ -73,8 +75,7 @@ defmodule EctoCursorBasedStream do
 
   @doc false
   def call(repo, queryable, options \\ []) do
-    %{max_rows: max_rows, after_cursor: after_cursor, cursor_field: cursor_field} =
-      parse_options(options)
+    %{max_rows: max_rows, after_cursor: after_cursor, cursor_field: cursor_field} = parse_options(options)
 
     Stream.unfold(after_cursor, fn cursor ->
       case get_rows(repo, queryable, cursor_field, cursor, max_rows) do
@@ -82,7 +83,9 @@ defmodule EctoCursorBasedStream do
           nil
 
         rows ->
-          next_cursor = get_last_row_cursor(rows, cursor_field)
+          [last | _] = :lists.reverse(rows)
+          next_cursor = Map.fetch!(last, cursor_field)
+
           {rows, next_cursor}
       end
     end)
@@ -102,22 +105,13 @@ defmodule EctoCursorBasedStream do
   end
 
   defp get_rows(repo, query, cursor_field, cursor, max_rows) do
-    import Ecto.Query
-
     query
+    |> _where(cursor_field, cursor)
     |> order_by([o], asc: ^cursor_field)
-    |> then(fn query ->
-      if is_nil(cursor) do
-        query
-      else
-        query |> where([r], field(r, ^cursor_field) > ^cursor)
-      end
-    end)
     |> limit(^max_rows)
     |> repo.all()
   end
 
-  defp get_last_row_cursor(rows, cursor_field) do
-    rows |> List.last() |> Map.fetch!(cursor_field)
-  end
+  defp _where(query, _cursor_field, cursor) when is_nil(cursor), do: query
+  defp _where(query, cursor_field, cursor), do: where(query, [r], field(r, ^cursor_field) > ^cursor)
 end

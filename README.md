@@ -60,5 +60,12 @@ Run the following after cloning the repo:
 ```sh
 mix deps.get
 docker-compose up -d
+DB_PORT=54323 mix test
+```
+
+or if you already have a Postgres server running:
+
+```sh
+mix deps.get
 mix test
 ```

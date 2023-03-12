@@ -8,8 +8,7 @@ defmodule EctoCursorBasedStream.MixProject do
       elixir: "~> 1.13",
       elixirc_paths: elixirc_paths(Mix.env()),
       start_permanent: Mix.env() == :prod,
-      description:
-        "Cursor-based streaming of Ecto records that doesn't require database transaction.",
+      description: "Cursor-based streaming of Ecto records that doesn't require database transaction.",
       package: [
         files: ["lib", ".formatter.exs", "mix.exs", "README*", "LICENSE*"],
         licenses: ["Apache-2.0"],
@@ -43,6 +42,7 @@ defmodule EctoCursorBasedStream.MixProject do
       {:dialyxir, "~> 1.0", only: [:dev, :test], runtime: false},
       {:credo, "~> 1.6", only: [:dev, :test], runtime: false},
       {:ex_doc, "~> 0.27", only: :dev, runtime: false},
+      {:mix_test_watch, "~> 1.1.0", only: [:dev, :test]},
       {:postgrex, "~> 0.16", only: [:test]}
     ]
   end
