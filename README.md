@@ -49,7 +49,7 @@ Post
 ## Useful links
 
 - [Documentation](https://hexdocs.pm/ecto_cursor_based_stream)
-- [Examples](/test/ecto_cursor_based_stream_test.exs)
+- [Examples](https://github.com/allegro/ecto-cursor-based-stream/blob/main/test/ecto_cursor_based_stream_test.exs)
 
 ## Contributing
 
