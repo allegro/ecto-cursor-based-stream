@@ -1,6 +1,6 @@
 # EctoCursorBasedStream
 
-[![Build Status](https://github.com/elixir-ecto/ecto/workflows/CI/badge.svg)](https://github.com/allegro/ecto-cursor-based-stream/actions) [![Hex.pm](https://img.shields.io/hexpm/v/ecto_cursor_based_stream.svg)](https://hex.pm/packages/ecto_cursor_based_stream) [![Documentation](https://img.shields.io/badge/documentation-gray)](https://hexdocs.pm/ecto_cursor_based_stream/)
+![Build Status](https://img.shields.io/github/actions/workflow/status/allegro/ecto-cursor-based-stream/test.yml) [![Hex.pm](https://img.shields.io/hexpm/v/ecto_cursor_based_stream.svg)](https://hex.pm/packages/ecto_cursor_based_stream) [![Documentation](https://img.shields.io/badge/documentation-gray)](https://hexdocs.pm/ecto_cursor_based_stream/)
 
 Cursor-based streaming of Ecto records, that does not require database transaction.
 
