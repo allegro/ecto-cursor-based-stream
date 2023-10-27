@@ -15,6 +15,7 @@ defmodule EctoCursorBasedStream do
       |> Stream.each(...)
       |> Stream.run()
   """
+  import Ecto.Query
 
   @type cursor_based_stream_opts :: [
           {:max_rows, integer()}
@@ -72,6 +73,7 @@ defmodule EctoCursorBasedStream do
   end
 
   @doc false
+  @spec call(Ecto.Repo.t(), Ecto.Queryable.t(), cursor_based_stream_opts) :: Enumerable.t()
   def call(repo, queryable, options \\ []) do
     %{max_rows: max_rows, after_cursor: after_cursor, cursor_field: cursor_field} =
       parse_options(options)
@@ -102,8 +104,6 @@ defmodule EctoCursorBasedStream do
   end
 
   defp get_rows(repo, query, cursor_field, cursor, max_rows) do
-    import Ecto.Query
-
     query
     |> order_by([o], asc: ^cursor_field)
     |> then(fn query ->
