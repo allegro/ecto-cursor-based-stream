@@ -4,7 +4,7 @@ defmodule EctoCursorBasedStream.MixProject do
   def project do
     [
       app: :ecto_cursor_based_stream,
-      version: "1.0.2",
+      version: "1.1.0",
       elixir: "~> 1.13",
       elixirc_paths: elixirc_paths(Mix.env()),
       start_permanent: Mix.env() == :prod,
@@ -40,10 +40,10 @@ defmodule EctoCursorBasedStream.MixProject do
   defp deps do
     [
       {:ecto_sql, "~> 3.0"},
-      {:dialyxir, "~> 1.0", only: [:dev, :test], runtime: false},
-      {:credo, "~> 1.6", only: [:dev, :test], runtime: false},
-      {:ex_doc, "~> 0.27", only: :dev, runtime: false},
-      {:postgrex, "~> 0.16", only: [:test]}
+      {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false},
+      {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
+      {:ex_doc, "~> 0.32", only: :dev, runtime: false},
+      {:postgrex, "~> 0.17", only: [:test]}
     ]
   end
 
