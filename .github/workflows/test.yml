@@ -3,8 +3,10 @@ name: Test
 on:
   workflow_call:
   workflow_dispatch:
+  pull_request:
+    types: [synchronize, opened, reopened]
   push:
-    branches: ["**"]
+    branches: ["main"]
     tags-ignore: ["**"]
 
 jobs:
@@ -13,7 +15,7 @@ jobs:
 
     strategy:
       matrix:
-        elixir: ["1.13.4", "1.14.5", "1.15.7"]
+        elixir: ["1.14.5", "1.15.7", "1.16.2"]
         otp: ["24.3.4.14", "25.3.2.7", "26.1.2"]
 
     services:
