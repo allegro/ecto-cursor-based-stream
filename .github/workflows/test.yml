@@ -13,8 +13,8 @@ jobs:
 
     strategy:
       matrix:
-        elixir: ["1.13.0"]
-        otp: ["24.2"]
+        elixir: ["1.13.4", "1.14.5", "1.15.7"]
+        otp: ["24.3.4.14", "25.3.2.7", "26.1.2"]
 
     services:
       db:
@@ -66,13 +66,16 @@ jobs:
       - name: Check Formatting
         run: mix format --check-formatted
 
+      - name: Check Unused deps
+        run: mix deps.unlock --check-unused
+
       - name: Compile project without warnings
         run: |
           mix compile --warnings-as-errors
           MIX_ENV=test mix compile --warnings-as-errors
 
       - name: Run Credo
-        run: mix credo
+        run: mix credo --strict
 
       - name: Run Dialyzer
         run: mix dialyzer --no-check
