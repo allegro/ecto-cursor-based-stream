@@ -1,5 +1,10 @@
 ## [Unreleased]
 
+## [1.1.0] - 2024-05-16
+### Changed
+- update dependencies
+- improve typespecs
+
 ## [1.0.2] - 2023-03-16
 ### Changed
 - Fix link to examples in hex docs
