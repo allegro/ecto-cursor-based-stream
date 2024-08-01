@@ -21,6 +21,7 @@ defmodule EctoCursorBasedStream do
           {:max_rows, integer()}
           | {:after_cursor, String.t() | integer()}
           | {:cursor_field, atom()}
+          | {:order, :asc | :desc}
         ]
 
   @doc """
@@ -52,6 +53,10 @@ defmodule EctoCursorBasedStream do
 
     Defaults to 500.
 
+  * `:order` - Order of results, `:asc` or `:desc`
+
+    Defaults to `:asc`.
+
   ## Example
 
       MyUser
@@ -75,11 +80,10 @@ defmodule EctoCursorBasedStream do
   @doc false
   @spec call(Ecto.Repo.t(), Ecto.Queryable.t(), cursor_based_stream_opts) :: Enumerable.t()
   def call(repo, queryable, options \\ []) do
-    %{max_rows: max_rows, after_cursor: after_cursor, cursor_field: cursor_field} =
-      parse_options(options)
+    %{after_cursor: after_cursor, cursor_field: cursor_field} = options = parse_options(options)
 
     Stream.unfold(after_cursor, fn cursor ->
-      case get_rows(repo, queryable, cursor_field, cursor, max_rows) do
+      case get_rows(repo, queryable, cursor, options) do
         [] ->
           nil
 
@@ -95,22 +99,31 @@ defmodule EctoCursorBasedStream do
     max_rows = Keyword.get(options, :max_rows, 500)
     after_cursor = Keyword.get(options, :after_cursor)
     cursor_field = Keyword.get(options, :cursor_field, :id)
+    order = Keyword.get(options, :order, :asc)
 
     %{
       max_rows: max_rows,
       after_cursor: after_cursor,
-      cursor_field: cursor_field
+      cursor_field: cursor_field,
+      order: order
     }
   end
 
-  defp get_rows(repo, query, cursor_field, cursor, max_rows) do
+  defp get_rows(repo, query, cursor, options) do
+    %{cursor_field: cursor_field, order: order, max_rows: max_rows} = options
+
     query
-    |> order_by([o], asc: ^cursor_field)
+    |> order_by([o], ^[{order, cursor_field}])
     |> then(fn query ->
-      if is_nil(cursor) do
-        query
-      else
-        query |> where([r], field(r, ^cursor_field) > ^cursor)
+      cond do
+        is_nil(cursor) ->
+          query
+
+        order == :desc ->
+          where(query, [r], field(r, ^cursor_field) < ^cursor)
+
+        true ->
+          where(query, [r], field(r, ^cursor_field) > ^cursor)
       end
     end)
     |> limit(^max_rows)

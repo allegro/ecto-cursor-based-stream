@@ -60,5 +60,21 @@ defmodule EctoCursorBasedStreamTest do
 
       assert result == rows |> Enum.slice(1, 2)
     end
+
+    test "if :order option is given, changes order of result", %{rows: rows} do
+      result =
+        User
+        |> Repo.cursor_based_stream(max_rows: 2, order: :asc)
+        |> Enum.to_list()
+
+      assert result == rows
+
+      result =
+        User
+        |> Repo.cursor_based_stream(max_rows: 2, order: :desc)
+        |> Enum.to_list()
+
+      assert result == Enum.reverse(rows)
+    end
   end
 end
