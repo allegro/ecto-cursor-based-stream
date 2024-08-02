@@ -18,10 +18,15 @@ defmodule EctoCursorBasedStream do
   import Ecto.Query
 
   @type cursor_based_stream_opts :: [
-          {:max_rows, integer()}
-          | {:after_cursor, String.t() | integer()}
-          | {:cursor_field, atom()}
+          {:max_rows, non_neg_integer()}
+          | {:after_cursor, String.t() | integer() | %{atom() => String.t() | integer()}}
+          | {:cursor_field, atom() | [atom()]}
           | {:order, :asc | :desc}
+          | {:prefix, String.t()}
+          | {:timeout, non_neg_integer()}
+          | {:log, false | Logger.level()}
+          | {:telemetry_event, term()}
+          | {:telemetry_options, term()}
         ]
 
   @doc """
@@ -58,6 +63,8 @@ defmodule EctoCursorBasedStream do
 
     Defaults to `:asc`.
 
+  * `:prefix, :timeout, :log, :telemetry_event, :telemetry_options` - options passed directly to `Ecto.Repo.all/2`
+
   ## Examples
 
       MyUser
@@ -88,6 +95,12 @@ defmodule EctoCursorBasedStream do
       MyUser
       |> select([u], map(u, [:id, ...])
       |> MyRepo.cursor_based_stream()
+      |> Stream.each(...)
+      |> Stream.run()
+
+      # pass custom options to Ecto.Repo.all/2
+      MyUser
+      |> MyRepo.cursor_based_stream(timeout: 60_000, prefix: "public")
       |> Stream.each(...)
       |> Stream.run()
   """
@@ -128,13 +141,17 @@ defmodule EctoCursorBasedStream do
     cursor_field = Keyword.get(options, :cursor_field, :id)
     order = Keyword.get(options, :order, :asc)
 
+    repo_opts =
+      Keyword.take(options, [:prefix, :timeout, :log, :telemetry_event, :telemetry_options])
+
     cursor_fields = validate_cursor_fields(cursor_field)
 
     %{
       max_rows: max_rows,
       cursor_fields: cursor_fields,
       after_cursor: validate_initial_cursor(cursor_fields, after_cursor),
-      order: order
+      order: order,
+      repo_opts: repo_opts
     }
   end
 
@@ -174,7 +191,9 @@ defmodule EctoCursorBasedStream do
   end
 
   defp get_rows(repo, query, cursor, options) do
-    %{cursor_fields: cursor_fields, order: order, max_rows: max_rows} = options
+    %{cursor_fields: cursor_fields, order: order, max_rows: max_rows, repo_opts: repo_opts} =
+      options
+
     order_by = Enum.map(cursor_fields, fn cursor_field -> {order, cursor_field} end)
 
     query
@@ -183,7 +202,7 @@ defmodule EctoCursorBasedStream do
       apply_cursor(query, cursor_fields, cursor, order)
     end)
     |> limit(^max_rows)
-    |> repo.all()
+    |> repo.all(repo_opts)
   end
 
   defp apply_cursor(query, _cursor_fields, nil, _order) do

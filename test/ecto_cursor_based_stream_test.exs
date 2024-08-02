@@ -157,6 +157,25 @@ defmodule EctoCursorBasedStreamTest do
                |> Enum.sort_by(&{&1.country_of_birth, &1.date_of_birth}, :desc)
                |> Enum.slice(2, 3)
     end
+
+    defmodule RepoStub do
+      use EctoCursorBasedStream
+
+      def all(query, options) do
+        send(self(), {__MODULE__, query, options})
+        []
+      end
+    end
+
+    test "if repo opts are given they are passed to Repo.all/2" do
+      User
+      |> RepoStub.cursor_based_stream(prefix: "public", timeout: 10_000, log: false)
+      |> Enum.to_list()
+
+      assert_receive {RepoStub, _query, options}
+
+      assert options == [prefix: "public", timeout: 10_000, log: false]
+    end
   end
 
   describe "validations" do
