@@ -198,18 +198,17 @@ defmodule EctoCursorBasedStream do
 
     query
     |> order_by([o], ^order_by)
-    |> then(fn query ->
-      apply_cursor(query, cursor_fields, cursor, order)
-    end)
+    |> apply_cursor_conditions(cursor_fields, cursor, order)
     |> limit(^max_rows)
     |> repo.all(repo_opts)
   end
 
-  defp apply_cursor(query, _cursor_fields, cursor, _order) when map_size(cursor) == 0 do
+  defp apply_cursor_conditions(query, _cursor_fields, cursor, _order)
+       when map_size(cursor) == 0 do
     query
   end
 
-  defp apply_cursor(query, cursor_fields, cursor, :asc) do
+  defp apply_cursor_conditions(query, cursor_fields, cursor, :asc) do
     conditions =
       cursor_fields
       |> zip_cursor_fields_with_values(cursor)
@@ -225,7 +224,7 @@ defmodule EctoCursorBasedStream do
     where(query, [r], ^conditions)
   end
 
-  defp apply_cursor(query, cursor_fields, cursor, :desc) do
+  defp apply_cursor_conditions(query, cursor_fields, cursor, :desc) do
     conditions =
       cursor_fields
       |> zip_cursor_fields_with_values(cursor)
@@ -269,7 +268,7 @@ defmodule EctoCursorBasedStream do
           {cursor_field, value}
 
         :error ->
-          raise ArgumentError,
+          raise RuntimeError,
                 "EctoCursorBasedStream query did not return cursor field #{inspect(cursor_field)}. If you are using custom `select` ensure that all cursor fields are returned as a map, e.g. `select([s], map(s, [#{inspect(cursor_field)}, ...]))`."
       end
     end)

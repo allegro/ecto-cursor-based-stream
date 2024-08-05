@@ -318,7 +318,7 @@ defmodule EctoCursorBasedStreamTest do
                      |> Enum.to_list()
                    end
 
-      assert_raise ArgumentError,
+      assert_raise RuntimeError,
                    "EctoCursorBasedStream query did not return cursor field :id. If you are using custom `select` ensure that all cursor fields are returned as a map, e.g. `select([s], map(s, [:id, ...]))`.",
                    fn ->
                      User
@@ -327,7 +327,7 @@ defmodule EctoCursorBasedStreamTest do
                      |> Enum.to_list()
                    end
 
-      assert_raise ArgumentError,
+      assert_raise RuntimeError,
                    "EctoCursorBasedStream query did not return cursor field :id. If you are using custom `select` ensure that all cursor fields are returned as a map, e.g. `select([s], map(s, [:id, ...]))`.",
                    fn ->
                      User
