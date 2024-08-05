@@ -1,39 +1,39 @@
 defmodule EctoCursorBasedStreamTest do
   use TestApp.RepoCase
 
-  setup do
-    rows = [
-      Repo.insert!(%User{
-        email: "1@test.com",
-        country_of_birth: "POL",
-        date_of_birth: ~U[1990-01-01 00:00:00.000000Z]
-      }),
-      Repo.insert!(%User{
-        email: "2@test.com",
-        country_of_birth: "POL",
-        date_of_birth: ~U[1991-02-02 00:00:00.000000Z]
-      }),
-      Repo.insert!(%User{
-        email: "3@test.com",
-        country_of_birth: "GER",
-        date_of_birth: ~U[1992-03-03 00:00:00.000000Z]
-      }),
-      Repo.insert!(%User{
-        email: "4@test.com",
-        country_of_birth: "GER",
-        date_of_birth: ~U[1993-04-04 00:00:00.000000Z]
-      }),
-      Repo.insert!(%User{
-        email: "5@test.com",
-        country_of_birth: "GBR",
-        date_of_birth: ~U[1994-05-05 00:00:00.000000Z]
-      })
-    ]
-
-    %{rows: rows}
-  end
-
   describe "cursor_based_stream/2" do
+    setup do
+      rows = [
+        Repo.insert!(%User{
+          email: "1@test.com",
+          country_of_birth: "POL",
+          date_of_birth: ~U[1990-01-01 00:00:00.000000Z]
+        }),
+        Repo.insert!(%User{
+          email: "2@test.com",
+          country_of_birth: "POL",
+          date_of_birth: ~U[1991-02-02 00:00:00.000000Z]
+        }),
+        Repo.insert!(%User{
+          email: "3@test.com",
+          country_of_birth: "GER",
+          date_of_birth: ~U[1992-03-03 00:00:00.000000Z]
+        }),
+        Repo.insert!(%User{
+          email: "4@test.com",
+          country_of_birth: "GER",
+          date_of_birth: ~U[1993-04-04 00:00:00.000000Z]
+        }),
+        Repo.insert!(%User{
+          email: "5@test.com",
+          country_of_birth: "GBR",
+          date_of_birth: ~U[1994-05-05 00:00:00.000000Z]
+        })
+      ]
+
+      %{rows: rows}
+    end
+
     test "if rows total count is smaller than :max_rows option, streams all the rows", %{
       rows: rows
     } do
@@ -131,33 +131,6 @@ defmodule EctoCursorBasedStreamTest do
                Enum.sort_by(rows, &{&1.country_of_birth, &1.date_of_birth}) |> Enum.reverse()
     end
 
-    test "sorting on multiple cursor fields with initial cursor", %{rows: rows} do
-      result =
-        User
-        |> Repo.cursor_based_stream(
-          cursor_field: [:country_of_birth, :date_of_birth],
-          after_cursor: %{country_of_birth: "GBR"}
-        )
-        |> Enum.to_list()
-
-      assert result ==
-               rows |> Enum.sort_by(&{&1.country_of_birth, &1.date_of_birth}) |> Enum.slice(1, 4)
-
-      result =
-        User
-        |> Repo.cursor_based_stream(
-          cursor_field: [:country_of_birth, :date_of_birth],
-          after_cursor: %{country_of_birth: "POL"},
-          order: :desc
-        )
-        |> Enum.to_list()
-
-      assert result ==
-               rows
-               |> Enum.sort_by(&{&1.country_of_birth, &1.date_of_birth}, :desc)
-               |> Enum.slice(2, 3)
-    end
-
     defmodule RepoStub do
       use EctoCursorBasedStream
 
@@ -178,7 +151,116 @@ defmodule EctoCursorBasedStreamTest do
     end
   end
 
+  describe "multi column cursor" do
+    setup do
+      data =
+        for x <- 1..5, y <- 1..5, z <- 1..5 do
+          %{id_1: x, id_2: y, id_3: z}
+        end
+
+      Repo.insert_all(MultiCursor, data)
+      :ok
+    end
+
+    test "iterates over all values" do
+      for order <- [:asc, :desc] do
+        result =
+          MultiCursor
+          |> where([c], c.id_1 == 1)
+          |> Repo.cursor_based_stream(
+            cursor_field: [:id_2, :id_3],
+            max_rows: :rand.uniform(10),
+            order: order
+          )
+          |> Enum.count()
+
+        assert result == 25
+
+        result =
+          MultiCursor
+          |> Repo.cursor_based_stream(
+            cursor_field: [:id_1, :id_2, :id_3],
+            max_rows: :rand.uniform(10),
+            order: order
+          )
+          |> Enum.count()
+
+        assert result == 125
+      end
+    end
+
+    test ":after_cursor on multiple cursor fields with initial cursor ascending" do
+      result =
+        MultiCursor
+        |> Repo.cursor_based_stream(
+          cursor_field: [:id_1, :id_2, :id_3],
+          after_cursor: %{id_1: 2, id_2: 3},
+          max_rows: 20
+        )
+        |> Enum.to_list()
+
+      assert length(result) == 3 * 25 + 2 * 5
+      assert %{id_1: 2, id_2: 4, id_3: 1} = hd(result)
+      assert %{id_1: 5, id_2: 5, id_3: 5} = List.last(result)
+
+      result =
+        MultiCursor
+        |> Repo.cursor_based_stream(
+          cursor_field: [:id_1, :id_2, :id_3],
+          after_cursor: %{id_1: 2, id_2: 3, id_3: 4},
+          max_rows: 20
+        )
+        |> Enum.to_list()
+
+      assert length(result) == 3 * 25 + 2 * 5 + 1
+      assert %{id_1: 2, id_2: 3, id_3: 5} = hd(result)
+      assert %{id_1: 5, id_2: 5, id_3: 5} = List.last(result)
+    end
+
+    test ":after_cursor on multiple cursor fields with initial cursor descending" do
+      result =
+        MultiCursor
+        |> Repo.cursor_based_stream(
+          cursor_field: [:id_1, :id_2, :id_3],
+          after_cursor: %{id_1: 2, id_2: 3},
+          max_rows: 20,
+          order: :desc
+        )
+        |> Enum.to_list()
+
+      assert length(result) == 1 * 25 + 2 * 5
+      assert %{id_1: 2, id_2: 2, id_3: 5} = hd(result)
+      assert %{id_1: 1, id_2: 1, id_3: 1} = List.last(result)
+
+      result =
+        MultiCursor
+        |> Repo.cursor_based_stream(
+          cursor_field: [:id_1, :id_2, :id_3],
+          after_cursor: %{id_1: 2, id_2: 3, id_3: 4},
+          max_rows: 20,
+          order: :desc
+        )
+        |> Enum.to_list()
+
+      assert length(result) == 1 * 25 + 2 * 5 + 3
+      assert %{id_1: 2, id_2: 3, id_3: 3} = hd(result)
+      assert %{id_1: 1, id_2: 1, id_3: 1} = List.last(result)
+    end
+  end
+
   describe "validations" do
+    setup do
+      rows = [
+        Repo.insert!(%User{
+          email: "1@test.com",
+          country_of_birth: "POL",
+          date_of_birth: ~U[1990-01-01 00:00:00.000000Z]
+        })
+      ]
+
+      %{rows: rows}
+    end
+
     test ":cursor_field must be an atom or list of atoms" do
       assert_raise ArgumentError,
                    "EctoCursorBasedStream expected `cursor_field` to be an atom or list of atoms, got: %{}.",

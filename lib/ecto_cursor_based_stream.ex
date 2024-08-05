@@ -19,7 +19,7 @@ defmodule EctoCursorBasedStream do
 
   @type cursor_based_stream_opts :: [
           {:max_rows, non_neg_integer()}
-          | {:after_cursor, String.t() | integer() | %{atom() => String.t() | integer()}}
+          | {:after_cursor, term() | %{atom() => term()}}
           | {:cursor_field, atom() | [atom()]}
           | {:order, :asc | :desc}
           | {:prefix, String.t()}
@@ -48,7 +48,7 @@ defmodule EctoCursorBasedStream do
     For performance reasons, we recommend that you have an index on that field. Defaults to `:id`.
 
   * `:after_cursor` - the value of the `:cursor_field` that results start. When `:cursor_field` is a list
-    then`:after_cursor` must be a map where keys are cursor fields.
+    then`:after_cursor` must be a map where keys are cursor fields (not all fields are required).
 
     Useful when you want to continue streaming from a certain point.
     Any rows with value equal or smaller than this value will not be included.
@@ -90,11 +90,10 @@ defmodule EctoCursorBasedStream do
       |> Stream.each(...)
       |> Stream.run()
 
-      # select custom fields
-      # remember to add `cursor_field`!
+      # select custom fields, remember to add cursor_field to select
       MyUser
-      |> select([u], map(u, [:id, ...])
-      |> MyRepo.cursor_based_stream()
+      |> select([u], map(u, [:my_id, ...])
+      |> MyRepo.cursor_based_stream(cursor_field: :my_id)
       |> Stream.each(...)
       |> Stream.run()
 
@@ -167,27 +166,28 @@ defmodule EctoCursorBasedStream do
   end
 
   defp validate_initial_cursor(_, nil) do
-    nil
+    %{}
   end
 
-  defp validate_initial_cursor(cursor_fields, %{} = after_cursor) do
-    {after_cursor, rest} = Map.split(after_cursor, cursor_fields)
+  defp validate_initial_cursor(cursor_fields, %{} = value) do
+    {after_cursor, rest} = Map.split(value, cursor_fields)
 
     if map_size(rest) == 0 do
       after_cursor
     else
       raise ArgumentError,
-            "EctoCursorBasedStream expected `after_cursor` to be a map with fields #{inspect(cursor_fields)}, got: #{inspect(rest)}."
+            "EctoCursorBasedStream expected `after_cursor` to be a map with fields #{inspect(cursor_fields)}, got: #{inspect(value)}."
     end
   end
 
-  defp validate_initial_cursor([cursor_field], after_cursor) when not is_list(after_cursor) do
-    %{cursor_field => after_cursor}
+  defp validate_initial_cursor([cursor_field], value)
+       when not is_list(value) and not is_tuple(value) do
+    %{cursor_field => value}
   end
 
-  defp validate_initial_cursor(cursor_fields, after_cursor) do
+  defp validate_initial_cursor(cursor_fields, value) do
     raise ArgumentError,
-          "EctoCursorBasedStream expected `after_cursor` to be a map with fields #{inspect(cursor_fields)}, got: #{inspect(after_cursor)}."
+          "EctoCursorBasedStream expected `after_cursor` to be a map with fields #{inspect(cursor_fields)}, got: #{inspect(value)}."
   end
 
   defp get_rows(repo, query, cursor, options) do
@@ -205,27 +205,52 @@ defmodule EctoCursorBasedStream do
     |> repo.all(repo_opts)
   end
 
-  defp apply_cursor(query, _cursor_fields, nil, _order) do
+  defp apply_cursor(query, _cursor_fields, cursor, _order) when map_size(cursor) == 0 do
     query
   end
 
-  defp apply_cursor(query, cursor_fields, cursor, order) do
-    Enum.reduce(cursor_fields, query, fn cursor_field, query ->
-      cursor = Map.get(cursor, cursor_field)
-      apply_cursor_field(query, cursor_field, cursor, order)
+  defp apply_cursor(query, cursor_fields, cursor, :asc) do
+    conditions =
+      cursor_fields
+      |> zip_cursor_fields_with_values(cursor)
+      |> Enum.reverse()
+      |> Enum.reduce(nil, fn
+        {field, value}, nil ->
+          dynamic([r], field(r, ^field) > ^value)
+
+        {field, value}, acc ->
+          dynamic([r], field(r, ^field) >= ^value and (field(r, ^field) > ^value or ^acc))
+      end)
+
+    where(query, [r], ^conditions)
+  end
+
+  defp apply_cursor(query, cursor_fields, cursor, :desc) do
+    conditions =
+      cursor_fields
+      |> zip_cursor_fields_with_values(cursor)
+      |> Enum.reverse()
+      |> Enum.reduce(nil, fn
+        {field, value}, nil ->
+          dynamic([r], field(r, ^field) < ^value)
+
+        {field, value}, acc ->
+          dynamic(
+            [r],
+            field(r, ^field) <= ^value and
+              (field(r, ^field) < ^value or ^acc)
+          )
+      end)
+
+    where(query, [r], ^conditions)
+  end
+
+  defp zip_cursor_fields_with_values(cursor_fields, cursor) do
+    cursor_fields
+    |> Enum.map(fn cursor_field ->
+      {cursor_field, Map.get(cursor, cursor_field)}
     end)
-  end
-
-  defp apply_cursor_field(query, _cursor_field, nil, _order) do
-    query
-  end
-
-  defp apply_cursor_field(query, cursor_field, cursor, :desc) do
-    where(query, [r], field(r, ^cursor_field) < ^cursor)
-  end
-
-  defp apply_cursor_field(query, cursor_field, cursor, _) do
-    where(query, [r], field(r, ^cursor_field) > ^cursor)
+    |> Enum.reject(&is_nil(elem(&1, 1)))
   end
 
   defp get_last_row_cursor(rows, cursor_fields) do
