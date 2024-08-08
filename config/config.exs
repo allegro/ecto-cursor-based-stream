@@ -1,6 +1,6 @@
 import Config
 
-config :logger, level: :warn
+config :logger, level: :warning
 
 config :ecto_cursor_based_stream, ecto_repos: [TestApp.Repo]
 

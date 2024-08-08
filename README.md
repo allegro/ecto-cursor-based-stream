@@ -23,7 +23,7 @@ Only limitation is that you have to supply a _cursor column_ (by passing `opts[:
 ```elixir
 def deps do
   [
-    {:ecto_cursor_based_stream, "~> 1.0.2"}
+    {:ecto_cursor_based_stream, "~> 1.1.0"}
   ]
 end
 ```
@@ -48,7 +48,7 @@ Post
 
 ## Useful links
 
-- [Documentation](https://hexdocs.pm/ecto_cursor_based_stream)
+- [Documentation](https://hexdocs.pm/ecto_cursor_based_stream/EctoCursorBasedStream.html)
 - [Examples](https://github.com/allegro/ecto-cursor-based-stream/blob/main/test/ecto_cursor_based_stream_test.exs)
 
 ## Contributing

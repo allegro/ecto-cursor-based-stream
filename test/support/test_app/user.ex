@@ -3,5 +3,7 @@ defmodule TestApp.User do
 
   schema "users" do
     field(:email, :string)
+    field(:country_of_birth, :string)
+    field(:date_of_birth, :utc_datetime_usec)
   end
 end

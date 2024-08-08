@@ -22,6 +22,7 @@ defmodule TestApp.RepoCase do
       import Ecto.Changeset
       import Ecto.Query
 
+      alias TestApp.MultiCursor
       alias TestApp.Repo
       alias TestApp.User
     end
