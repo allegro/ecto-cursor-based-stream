@@ -1,9 +1,9 @@
-defmodule EctoCursorBasedStream.MixProject do
+defmodule EctoCursor.MixProject do
   use Mix.Project
 
   def project do
     [
-      app: :ecto_cursor_based_stream,
+      app: :ecto_cursor,
       version: "1.1.0",
       elixir: "~> 1.13",
       elixirc_paths: elixirc_paths(Mix.env()),
@@ -15,7 +15,7 @@ defmodule EctoCursorBasedStream.MixProject do
         licenses: ["Apache-2.0"],
         links: %{
           "Source code" => "https://github.com/allegro/ecto-cursor-based-stream",
-          "Documentation" => "https://hexdocs.pm/ecto_cursor_based_stream"
+          "Documentation" => "https://hexdocs.pm/ecto_cursor"
         }
       ],
       docs: [

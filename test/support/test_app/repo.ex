@@ -1,7 +1,7 @@
 defmodule TestApp.Repo do
   use Ecto.Repo,
-    otp_app: :ecto_cursor_based_stream,
+    otp_app: :ecto_cursor,
     adapter: Ecto.Adapters.Postgres
 
-  use EctoCursorBasedStream
+  use EctoCursor
 end

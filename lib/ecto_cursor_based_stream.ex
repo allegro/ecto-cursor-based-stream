@@ -1,23 +1,23 @@
-defmodule EctoCursorBasedStream do
+defmodule EctoCursor do
   @moduledoc """
   Use this module in any module that uses `Ecto.Repo`
-  to enrich it with `cursor_based_stream/2` function.
+  to enrich it with `cursor_stream/2` function.
 
   Example:
 
       defmodule MyRepo do
         use Ecto.Repo
-        use EctoCursorBasedStream
+        use EctoCursor
       end
 
       MyUser
-      |> MyRepo.cursor_based_stream(max_rows: 100)
+      |> MyRepo.cursor_stream(max_rows: 100)
       |> Stream.each(...)
       |> Stream.run()
   """
   import Ecto.Query
 
-  @type cursor_based_stream_opts :: [
+  @type cursor_stream_opts :: [
           {:max_rows, non_neg_integer()}
           | {:after_cursor, term() | %{atom() => term()}}
           | {:cursor_field, atom() | [atom()]}
@@ -61,64 +61,77 @@ defmodule EctoCursorBasedStream do
 
   * `:order` - Order of results, `:asc` or `:desc`
 
-    Defaults to `:asc`.
+    Defaults to `:asc`. If list of cursor fields is given with specific order, then this option is ignored.
 
   * `:prefix, :timeout, :log, :telemetry_event, :telemetry_options` - options passed directly to `Ecto.Repo.all/2`
 
   ## Examples
 
       MyUser
-      |> MyRepo.cursor_based_stream(max_rows: 1000)
+      |> MyRepo.cursor_stream(max_rows: 1000)
       |> Stream.each(...)
       |> Stream.run()
 
       # change order
       MyUser
-      |> MyRepo.cursor_based_stream(order: :desc)
+      |> MyRepo.cursor_stream(order: :desc)
       |> Stream.each(...)
       |> Stream.run()
 
       # change cursor field and set starting cursor
       MyUser
-      |> MyRepo.cursor_based_stream(cursor_field: :email, after_cursor: "foo@bar.com")
+      |> MyRepo.cursor_stream(cursor_field: :email, after_cursor: "foo@bar.com")
       |> Stream.each(...)
       |> Stream.run()
 
       # with multiple fields
       MyUser
-      |> MyRepo.cursor_based_stream(cursor_field: [:email, :date_of_birth], after_cursor: %{email: "foo@bar.com"})
+      |> MyRepo.cursor_stream(cursor_field: [:email, :date_of_birth], after_cursor: %{email: "foo@bar.com"})
+      |> Stream.each(...)
+      |> Stream.run()
+
+      # Multi field cursor with custom order
+      MyUser
+      |> MyRepo.cursor_stream(cursor_field: [email: :desc, id: :asc], order: :desc, after_cursor: %{email: "foo@bar.com", id: 1})
       |> Stream.each(...)
       |> Stream.run()
 
       # select custom fields, remember to add cursor_field to select
       MyUser
       |> select([u], map(u, [:my_id, ...])
-      |> MyRepo.cursor_based_stream(cursor_field: :my_id)
+      |> MyRepo.cursor_stream(cursor_field: :my_id)
       |> Stream.each(...)
       |> Stream.run()
 
       # pass custom options to Ecto.Repo.all/2
       MyUser
-      |> MyRepo.cursor_based_stream(timeout: 60_000, prefix: "public")
+      |> MyRepo.cursor_stream(timeout: 60_000, prefix: "public")
       |> Stream.each(...)
       |> Stream.run()
   """
-  @callback cursor_based_stream(Ecto.Queryable.t(), cursor_based_stream_opts) :: Enum.t()
+  @callback cursor_stream(Ecto.Queryable.t(), cursor_stream_opts) :: Enum.t()
+  @callback cursor_query(Ecto.Queryable.t(), cursor_stream_opts) ::
+              {Enum.t(), %{atom() => term() | nil}}
 
   defmacro __using__(_) do
     quote do
-      @behaviour EctoCursorBasedStream
+      @behaviour EctoCursor
 
-      @impl EctoCursorBasedStream
-      def cursor_based_stream(queryable, options \\ []) do
-        EctoCursorBasedStream.call(__MODULE__, queryable, options)
+      @impl EctoCursor
+      def cursor_stream(queryable, options \\ []) do
+        EctoCursor.stream(__MODULE__, queryable, options)
+      end
+
+      @impl EctoCursor
+      def cursor_query(queryable, options \\ []) do
+        EctoCursor.query(__MODULE__, queryable, options)
       end
     end
   end
 
   @doc false
-  @spec call(Ecto.Repo.t(), Ecto.Queryable.t(), cursor_based_stream_opts) :: Enumerable.t()
-  def call(repo, queryable, options \\ []) do
+  @spec stream(Ecto.Repo.t(), Ecto.Queryable.t(), cursor_stream_opts) :: Enumerable.t()
+  def stream(repo, queryable, options \\ []) do
     %{after_cursor: after_cursor, cursor_fields: cursor_fields} = options = parse_options(options)
 
     Stream.unfold(after_cursor, fn cursor ->
@@ -134,6 +147,21 @@ defmodule EctoCursorBasedStream do
     |> Stream.flat_map(& &1)
   end
 
+  @doc false
+  @spec query(Ecto.Repo.t(), Ecto.Queryable.t(), cursor_stream_opts) :: Enumerable.t()
+  def query(repo, queryable, options \\ []) do
+    %{after_cursor: after_cursor, cursor_fields: cursor_fields} = options = parse_options(options)
+
+    case get_rows(repo, queryable, after_cursor, options) do
+      [] ->
+        {[], nil}
+
+      rows ->
+        next_cursor = get_last_row_cursor(rows, cursor_fields)
+        {rows, next_cursor}
+    end
+  end
+
   defp parse_options(options) do
     max_rows = Keyword.get(options, :max_rows, 500)
     after_cursor = Keyword.get(options, :after_cursor, nil)
@@ -144,6 +172,8 @@ defmodule EctoCursorBasedStream do
       Keyword.take(options, [:prefix, :timeout, :log, :telemetry_event, :telemetry_options])
 
     cursor_fields = validate_cursor_fields(cursor_field)
+
+    {cursor_fields, order} = normalize_cursor_fields(cursor_fields, order)
 
     %{
       max_rows: max_rows,
@@ -157,12 +187,32 @@ defmodule EctoCursorBasedStream do
   defp validate_cursor_fields(value) do
     cursor_fields = List.wrap(value)
 
-    if Enum.all?(cursor_fields, &is_atom/1) do
+    is_valid =
+      Enum.all?(cursor_fields, fn
+        field when is_atom(field) -> true
+        {field, direction} when is_atom(field) and direction in [:asc, :desc] -> true
+        _ -> false
+      end)
+
+    if is_valid do
       cursor_fields
     else
       raise ArgumentError,
-            "EctoCursorBasedStream expected `cursor_field` to be an atom or list of atoms, got: #{inspect(value)}."
+            "EctoCursor expected `cursor_field` to be an atom or list of atoms or list of tuple {atom, :asc|:desc}, got: #{inspect(value)}."
     end
+  end
+
+  # Normalize cursor fields to list of atoms
+  # and return order for each field
+  defp normalize_cursor_fields(cursor_fields, order) do
+    fields_order =
+      cursor_fields
+      |> Enum.map(fn
+        {field, direction} -> {field, direction}
+        field -> {field, order}
+      end)
+
+    {Keyword.keys(fields_order), fields_order}
   end
 
   defp validate_initial_cursor(_, nil) do
@@ -176,7 +226,7 @@ defmodule EctoCursorBasedStream do
       after_cursor
     else
       raise ArgumentError,
-            "EctoCursorBasedStream expected `after_cursor` to be a map with fields #{inspect(cursor_fields)}, got: #{inspect(value)}."
+            "EctoCursor expected `after_cursor` to be a map with fields #{inspect(cursor_fields)}, got: #{inspect(value)}."
     end
   end
 
@@ -187,14 +237,14 @@ defmodule EctoCursorBasedStream do
 
   defp validate_initial_cursor(cursor_fields, value) do
     raise ArgumentError,
-          "EctoCursorBasedStream expected `after_cursor` to be a map with fields #{inspect(cursor_fields)}, got: #{inspect(value)}."
+          "EctoCursor expected `after_cursor` to be a map with fields #{inspect(cursor_fields)}, got: #{inspect(value)}."
   end
 
   defp get_rows(repo, query, cursor, options) do
     %{cursor_fields: cursor_fields, order: order, max_rows: max_rows, repo_opts: repo_opts} =
       options
 
-    order_by = Enum.map(cursor_fields, fn cursor_field -> {order, cursor_field} end)
+    order_by = Enum.map(order, fn {field, direction} -> {direction, field} end)
 
     query
     |> order_by([o], ^order_by)
@@ -208,46 +258,49 @@ defmodule EctoCursorBasedStream do
     query
   end
 
-  defp apply_cursor_conditions(query, cursor_fields, cursor, :asc) do
+  # with cursor %{id_1: 1, id_2: 4, id_3: 1}
+  # the result is something like this
+  # m0.id_1 <= ^1 and
+  # (m0.id_1 < ^1 or
+  #    (m0.id_2 <= ^4 and
+  #       (m0.id_2 < ^4 or m0.id_3 < ^1)
+  #    )
+  # )
+  defp apply_cursor_conditions(query, cursor_fields, cursor, order) do
     conditions =
       cursor_fields
-      |> zip_cursor_fields_with_values(cursor)
+      |> zip_cursor_fields_with_values(cursor, order)
       |> Enum.reverse()
-      |> Enum.reduce(nil, fn
-        {field, value}, nil ->
-          dynamic([r], field(r, ^field) > ^value)
-
-        {field, value}, acc ->
-          dynamic([r], field(r, ^field) >= ^value and (field(r, ^field) > ^value or ^acc))
+      |> Enum.reduce(nil, fn field_settings, acc ->
+        build_condition(acc, field_settings)
       end)
 
     where(query, [r], ^conditions)
   end
 
-  defp apply_cursor_conditions(query, cursor_fields, cursor, :desc) do
-    conditions =
-      cursor_fields
-      |> zip_cursor_fields_with_values(cursor)
-      |> Enum.reverse()
-      |> Enum.reduce(nil, fn
-        {field, value}, nil ->
-          dynamic([r], field(r, ^field) < ^value)
-
-        {field, value}, acc ->
-          dynamic(
-            [r],
-            field(r, ^field) <= ^value and
-              (field(r, ^field) < ^value or ^acc)
-          )
-      end)
-
-    where(query, [r], ^conditions)
+  # build condition for right most field
+  defp build_condition(nil, {field, value, order}) do
+    if order == :asc do
+      dynamic([r], field(r, ^field) > ^value)
+    else
+      dynamic([r], field(r, ^field) < ^value)
+    end
   end
 
-  defp zip_cursor_fields_with_values(cursor_fields, cursor) do
+  # build condition for other fields
+  defp build_condition(acc, {field, value, order}) do
+    if order == :asc do
+      dynamic([r], field(r, ^field) >= ^value and (field(r, ^field) > ^value or ^acc))
+    else
+      dynamic([r], field(r, ^field) <= ^value and (field(r, ^field) < ^value or ^acc))
+    end
+  end
+
+  # for each field build tuple of {field, value, order}
+  defp zip_cursor_fields_with_values(cursor_fields, cursor, order) do
     cursor_fields
     |> Enum.map(fn cursor_field ->
-      {cursor_field, Map.get(cursor, cursor_field)}
+      {cursor_field, Map.get(cursor, cursor_field), Keyword.get(order, cursor_field)}
     end)
     |> Enum.reject(&is_nil(elem(&1, 1)))
   end
@@ -259,7 +312,7 @@ defmodule EctoCursorBasedStream do
       select = Enum.map_join(cursor_fields, ", ", &inspect/1)
 
       raise RuntimeError,
-            "EctoCursorBasedStream query must return a map with cursor field. If you are using custom `select` ensure that all cursor fields are returned as a map, e.g. `select([s], map(s, [#{select}]))`."
+            "EctoCursor query must return a map with cursor field. If you are using custom `select` ensure that all cursor fields are returned as a map, e.g. `select([s], map(s, [#{select}]))`."
     end
 
     Map.new(cursor_fields, fn cursor_field ->
@@ -269,7 +322,7 @@ defmodule EctoCursorBasedStream do
 
         :error ->
           raise RuntimeError,
-                "EctoCursorBasedStream query did not return cursor field #{inspect(cursor_field)}. If you are using custom `select` ensure that all cursor fields are returned as a map, e.g. `select([s], map(s, [#{inspect(cursor_field)}, ...]))`."
+                "EctoCursor query did not return cursor field #{inspect(cursor_field)}. If you are using custom `select` ensure that all cursor fields are returned as a map, e.g. `select([s], map(s, [#{inspect(cursor_field)}, ...]))`."
       end
     end)
   end

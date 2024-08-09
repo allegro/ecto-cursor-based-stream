@@ -2,12 +2,12 @@ import Config
 
 config :logger, level: :warning
 
-config :ecto_cursor_based_stream, ecto_repos: [TestApp.Repo]
+config :ecto_cursor, ecto_repos: [TestApp.Repo]
 
-config :ecto_cursor_based_stream, TestApp.Repo,
+config :ecto_cursor, TestApp.Repo,
   username: "postgres",
   password: "postgres",
-  database: "postgres",
+  database: "test_cursor",
   hostname: "localhost",
-  port: 54323,
+  port: 5432,
   pool: Ecto.Adapters.SQL.Sandbox
