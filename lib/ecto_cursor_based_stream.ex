@@ -22,6 +22,7 @@ defmodule EctoCursorBasedStream do
           | {:after_cursor, term() | %{atom() => term()}}
           | {:cursor_field, atom() | [atom()]}
           | {:order, :asc | :desc}
+          | {:parallel, boolean()}
           | {:prefix, String.t()}
           | {:timeout, non_neg_integer()}
           | {:log, false | Logger.level()}
@@ -36,8 +37,8 @@ defmodule EctoCursorBasedStream do
   In contrast to `Ecto.Repo.stream/2`,
   this will not use database mechanisms (e.g. database transactions) to stream the rows.
 
-  It does so by sorting all the rows by `options[:cursor_field]`
-  and iterating over them in chunks of size `options[:max_rows]`.
+  It does so by sorting all the rows by `:cursor_field` and iterating over them in chunks
+  of size `:max_rows`.
 
   ## Options
 
@@ -97,6 +98,7 @@ defmodule EctoCursorBasedStream do
       # select custom fields, remember to add cursor_field to select
       MyUser
       |> select([u], map(u, [:my_id, ...])
+      |> select_merge([u], ...)
       |> MyRepo.cursor_based_stream(cursor_field: :my_id)
       |> Stream.each(...)
       |> Stream.run()
