@@ -149,6 +149,33 @@ defmodule EctoCursorBasedStreamTest do
 
       assert options == [prefix: "public", timeout: 10_000, log: false]
     end
+
+    defmodule ParallelRepoStub do
+      use EctoCursorBasedStream
+
+      def all(_query, _options) do
+        :timer.sleep(100)
+
+        [%User{id: System.monotonic_time()}]
+      end
+    end
+
+    test "if :parellel option is given, fetches data in parallel" do
+      [not_parallel_duration, parallel_duration] =
+        for parallel? <- [false, true] do
+          :timer.tc(fn ->
+            ParallelRepoStub.cursor_based_stream(User, parallel: parallel?)
+            |> Stream.each(fn _ -> :timer.sleep(100) end)
+            |> Enum.take(5)
+          end)
+          |> elem(0)
+        end
+
+      # assert parallel version is roughly 2 times faster
+      difference = parallel_duration / not_parallel_duration * 100
+      assert difference <= 60
+      assert difference >= 50
+    end
   end
 
   describe "multi column cursor" do

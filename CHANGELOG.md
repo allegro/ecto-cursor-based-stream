@@ -1,5 +1,6 @@
 ## [Unreleased]
 ### Changed
+- add option to fetch records and process them in parallel, `parallel: true`
 - allow to iterate over multiple fields in cursor, e.g. `cursor_field: [:id_1, :id_2]`
 - allow multiple fields in starting cursor, e.g. `after_cursor: %{id_1: id1, id_2: id2}`
 - allow ordering or results, e.g. `order: :desc`
