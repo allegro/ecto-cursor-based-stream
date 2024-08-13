@@ -63,6 +63,10 @@ defmodule EctoCursorBasedStream do
 
     Defaults to `:asc`.
 
+  * `:parallel` - when `true` fetches next batch of records in parallel to processing the stream.
+
+    Defaults to `false` as this spawns `Task`s and could cause issues e.g. with Ecto Sandbox in tests.
+
   * `:prefix, :timeout, :log, :telemetry_event, :telemetry_options` - options passed directly to `Ecto.Repo.all/2`
 
   ## Examples
@@ -72,9 +76,9 @@ defmodule EctoCursorBasedStream do
       |> Stream.each(...)
       |> Stream.run()
 
-      # change order
+      # change order, run in parallel
       MyUser
-      |> MyRepo.cursor_based_stream(order: :desc)
+      |> MyRepo.cursor_based_stream(order: :desc, parallel: true)
       |> Stream.each(...)
       |> Stream.run()
 
@@ -121,15 +125,21 @@ defmodule EctoCursorBasedStream do
   def call(repo, queryable, options \\ []) do
     %{after_cursor: after_cursor, cursor_fields: cursor_fields} = options = parse_options(options)
 
-    Stream.unfold(after_cursor, fn cursor ->
-      case get_rows(repo, queryable, cursor, options) do
-        [] ->
-          nil
+    Stream.unfold(nil, fn
+      nil ->
+        task = get_rows_task(repo, queryable, after_cursor, options)
+        {[], task}
 
-        rows ->
-          next_cursor = get_last_row_cursor(rows, cursor_fields)
-          {rows, next_cursor}
-      end
+      task ->
+        case options.task_module.await(task) do
+          [] ->
+            nil
+
+          rows ->
+            next_cursor = get_last_row_cursor(rows, cursor_fields)
+            task = get_rows_task(repo, queryable, next_cursor, options)
+            {rows, task}
+        end
     end)
     |> Stream.flat_map(& &1)
   end
@@ -139,6 +149,11 @@ defmodule EctoCursorBasedStream do
     after_cursor = Keyword.get(options, :after_cursor, nil)
     cursor_field = Keyword.get(options, :cursor_field, :id)
     order = Keyword.get(options, :order, :asc)
+
+    task_module =
+      if Keyword.get(options, :parallel, false),
+        do: Task,
+        else: EctoCursorBasedStream.TaskSynchronous
 
     repo_opts =
       Keyword.take(options, [:prefix, :timeout, :log, :telemetry_event, :telemetry_options])
@@ -150,7 +165,8 @@ defmodule EctoCursorBasedStream do
       cursor_fields: cursor_fields,
       after_cursor: validate_initial_cursor(cursor_fields, after_cursor),
       order: order,
-      repo_opts: repo_opts
+      repo_opts: repo_opts,
+      task_module: task_module
     }
   end
 
@@ -190,17 +206,19 @@ defmodule EctoCursorBasedStream do
           "EctoCursorBasedStream expected `after_cursor` to be a map with fields #{inspect(cursor_fields)}, got: #{inspect(value)}."
   end
 
-  defp get_rows(repo, query, cursor, options) do
+  defp get_rows_task(repo, query, cursor, options) do
     %{cursor_fields: cursor_fields, order: order, max_rows: max_rows, repo_opts: repo_opts} =
       options
 
     order_by = Enum.map(cursor_fields, fn cursor_field -> {order, cursor_field} end)
 
-    query
-    |> order_by([o], ^order_by)
-    |> apply_cursor_conditions(cursor_fields, cursor, order)
-    |> limit(^max_rows)
-    |> repo.all(repo_opts)
+    options.task_module.async(fn ->
+      query
+      |> order_by([o], ^order_by)
+      |> apply_cursor_conditions(cursor_fields, cursor, order)
+      |> limit(^max_rows)
+      |> repo.all(repo_opts)
+    end)
   end
 
   defp apply_cursor_conditions(query, _cursor_fields, cursor, _order)
