@@ -8,10 +8,10 @@ Gives you a [`cursor_based_stream/2`](https://hexdocs.pm/ecto_cursor_based_strea
 
 Advantages in comparison to the standard `Ecto.Repo.stream/2`:
 
-- streaming can be stopped and continued at any point (by passing `opts[:after_cursor]`),
+- streaming can be stopped and continued at any point (by passing option `after_cursor: ...`),
 - works with tables that have milions of records.
 
-Only limitation is that you have to supply a _cursor column_ (by passing `opts[:cursor_field]`, defaults to `:id`). Such a column:
+Only limitation is that you have to supply a _cursor column or columns_ (by passing option `cursor_field: ...`, defaults to `:id`). Such a column(s):
 
 - must have unique values,
 - should have a database index. (So that sorting by it, and returning a number of rows larger than `x` is a performant operation.)
@@ -23,7 +23,7 @@ Only limitation is that you have to supply a _cursor column_ (by passing `opts[:
 ```elixir
 def deps do
   [
-    {:ecto_cursor_based_stream, "~> 1.1.0"}
+    {:ecto_cursor_based_stream, "~> 1.2.0"}
   ]
 end
 ```
@@ -41,7 +41,7 @@ end
 
 ```elixir
 Post
-|> MyRepo.cursor_based_stream(max_rows: 100)
+|> MyRepo.cursor_based_stream()
 |> Stream.each(...)
 |> Stream.run()
 ```
