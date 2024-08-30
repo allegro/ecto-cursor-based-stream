@@ -1,4 +1,4 @@
-defmodule EctoCursor.TaskSynchronous do
+defmodule Cursornator.TaskSynchronous do
   @moduledoc false
 
   def async(fun) do

@@ -1,4 +1,7 @@
-# EctoCursor
+# Cursornator
+
+
+> **Notes**: This repo is my customized version of [Ecto Cursor based stream](https://github.com/allegro/ecto-cursor-based-stream) for using in my projects.
 
 Cursor-based streaming of Ecto records, that does not require database transaction.
 
@@ -14,22 +17,22 @@ Only limitation is that you have to supply a _cursor column or columns_ (by pass
 
 ## Usage
 
-1. Add `ecto_cursor` to your list of dependencies in `mix.exs`:
+1. Add `cursornator` to your list of dependencies in `mix.exs`:
 
 ```elixir
 def deps do
   [
-    {:ecto_cursor, "~> 1.1.0"}
+    {:cursornator, "~> 1.3.0"}
   ]
 end
 ```
 
-2. Add `use EctoCursor` to the module that uses `Ecto.Repo`:
+2. Add `use Cursornator` to the module that uses `Ecto.Repo`:
 
 ```elixir
 defmodule MyRepo do
   use Ecto.Repo
-  use EctoCursor
+  use Cursornator
 end
 ```
 

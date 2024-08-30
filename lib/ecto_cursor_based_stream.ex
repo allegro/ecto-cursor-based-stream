@@ -1,4 +1,4 @@
-defmodule EctoCursor do
+defmodule Cursornator do
   @moduledoc """
   Use this module in any module that uses `Ecto.Repo`
   to enrich it with `cursor_stream/2` function.
@@ -7,7 +7,7 @@ defmodule EctoCursor do
 
       defmodule MyRepo do
         use Ecto.Repo
-        use EctoCursor
+        use Cursornator
       end
 
       MyUser
@@ -17,7 +17,7 @@ defmodule EctoCursor do
   """
   import Ecto.Query
 
-  @type cursor_stream_opts :: [
+  @type cursor_opts :: [
           {:max_rows, non_neg_integer()}
           | {:after_cursor, term() | %{atom() => term()}}
           | {:cursor_field, atom() | [atom()]}
@@ -115,28 +115,28 @@ defmodule EctoCursor do
       |> Stream.each(...)
       |> Stream.run()
   """
-  @callback cursor_stream(Ecto.Queryable.t(), cursor_stream_opts) :: Enum.t()
-  @callback cursor_query(Ecto.Queryable.t(), cursor_stream_opts) ::
+  @callback cursor_stream(Ecto.Queryable.t(), cursor_opts) :: Enum.t()
+  @callback cursor_query(Ecto.Queryable.t(), cursor_opts) ::
               {Enum.t(), %{atom() => term() | nil}}
 
   defmacro __using__(_) do
     quote do
-      @behaviour EctoCursor
+      @behaviour Cursornator
 
-      @impl EctoCursor
+      @impl Cursornator
       def cursor_stream(queryable, options \\ []) do
-        EctoCursor.stream(__MODULE__, queryable, options)
+        Cursornator.stream(__MODULE__, queryable, options)
       end
 
-      @impl EctoCursor
+      @impl Cursornator
       def cursor_query(queryable, options \\ []) do
-        EctoCursor.query(__MODULE__, queryable, options)
+        Cursornator.query(__MODULE__, queryable, options)
       end
     end
   end
 
   @doc false
-  @spec stream(Ecto.Repo.t(), Ecto.Queryable.t(), cursor_stream_opts) :: Enumerable.t()
+  @spec stream(Ecto.Repo.t(), Ecto.Queryable.t(), cursor_opts) :: Enumerable.t()
   def stream(repo, queryable, options \\ []) do
     %{after_cursor: after_cursor, cursor_fields: cursor_fields} = options = parse_options(options)
 
@@ -160,7 +160,7 @@ defmodule EctoCursor do
   end
 
   @doc false
-  @spec query(Ecto.Repo.t(), Ecto.Queryable.t(), cursor_stream_opts) :: Enumerable.t()
+  @spec query(Ecto.Repo.t(), Ecto.Queryable.t(), cursor_opts) :: Enumerable.t()
   def query(repo, queryable, options \\ []) do
     %{after_cursor: after_cursor, cursor_fields: cursor_fields} = options = parse_options(options)
 
@@ -183,7 +183,7 @@ defmodule EctoCursor do
     task_module =
       if Keyword.get(options, :parallel, false),
         do: Task,
-        else: EctoCursor.TaskSynchronous
+        else: Cursornator.TaskSynchronous
 
     repo_opts =
       Keyword.take(options, [:prefix, :timeout, :log, :telemetry_event, :telemetry_options])
@@ -216,7 +216,7 @@ defmodule EctoCursor do
       cursor_fields
     else
       raise ArgumentError,
-            "EctoCursor expected `cursor_field` to be an atom or list of atoms or list of tuple {atom, :asc|:desc}, got: #{inspect(value)}."
+            "Cursornator expected `cursor_field` to be an atom or list of atoms or list of tuple {atom, :asc|:desc}, got: #{inspect(value)}."
     end
   end
 
@@ -244,7 +244,7 @@ defmodule EctoCursor do
       after_cursor
     else
       raise ArgumentError,
-            "EctoCursor expected `after_cursor` to be a map with fields #{inspect(cursor_fields)}, got: #{inspect(value)}."
+            "Cursornator expected `after_cursor` to be a map with fields #{inspect(cursor_fields)}, got: #{inspect(value)}."
     end
   end
 
@@ -255,7 +255,7 @@ defmodule EctoCursor do
 
   defp validate_initial_cursor(cursor_fields, value) do
     raise ArgumentError,
-          "EctoCursor expected `after_cursor` to be a map with fields #{inspect(cursor_fields)}, got: #{inspect(value)}."
+          "Cursornator expected `after_cursor` to be a map with fields #{inspect(cursor_fields)}, got: #{inspect(value)}."
   end
 
   defp get_rows_task(repo, query, cursor, options) do
@@ -345,7 +345,7 @@ defmodule EctoCursor do
       select = Enum.map_join(cursor_fields, ", ", &inspect/1)
 
       raise RuntimeError,
-            "EctoCursor query must return a map with cursor field. If you are using custom `select` ensure that all cursor fields are returned as a map, e.g. `select([s], map(s, [#{select}]))`."
+            "Cursornator query must return a map with cursor field. If you are using custom `select` ensure that all cursor fields are returned as a map, e.g. `select([s], map(s, [#{select}]))`."
     end
 
     Map.new(cursor_fields, fn cursor_field ->
@@ -355,7 +355,7 @@ defmodule EctoCursor do
 
         :error ->
           raise RuntimeError,
-                "EctoCursor query did not return cursor field #{inspect(cursor_field)}. If you are using custom `select` ensure that all cursor fields are returned as a map, e.g. `select([s], map(s, [#{inspect(cursor_field)}, ...]))`."
+                "Cursornator query did not return cursor field #{inspect(cursor_field)}. If you are using custom `select` ensure that all cursor fields are returned as a map, e.g. `select([s], map(s, [#{inspect(cursor_field)}, ...]))`."
       end
     end)
   end

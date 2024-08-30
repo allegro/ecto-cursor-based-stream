@@ -1,4 +1,4 @@
-defmodule EctoCursorTest do
+defmodule CursornatorTest do
   use TestApp.RepoCase
 
   describe "cursor_stream/2" do
@@ -132,7 +132,7 @@ defmodule EctoCursorTest do
     end
 
     defmodule RepoStub do
-      use EctoCursor
+      use Cursornator
 
       def all(query, options) do
         send(self(), {__MODULE__, query, options})
@@ -151,7 +151,7 @@ defmodule EctoCursorTest do
     end
 
     defmodule ParallelRepoStub do
-      use EctoCursor
+      use Cursornator
 
       def all(_query, _options) do
         :timer.sleep(100)
@@ -193,7 +193,7 @@ defmodule EctoCursorTest do
 
     test ":cursor_field must be an atom or list of atoms" do
       assert_raise ArgumentError,
-                   "EctoCursor expected `cursor_field` to be an atom or list of atoms or list of tuple {atom, :asc|:desc}, got: %{}.",
+                   "Cursornator expected `cursor_field` to be an atom or list of atoms or list of tuple {atom, :asc|:desc}, got: %{}.",
                    fn ->
                      User
                      |> Repo.cursor_stream(cursor_field: %{})
@@ -201,7 +201,7 @@ defmodule EctoCursorTest do
                    end
 
       assert_raise ArgumentError,
-                   "EctoCursor expected `cursor_field` to be an atom or list of atoms or list of tuple {atom, :asc|:desc}, got: \"email\".",
+                   "Cursornator expected `cursor_field` to be an atom or list of atoms or list of tuple {atom, :asc|:desc}, got: \"email\".",
                    fn ->
                      User
                      |> Repo.cursor_stream(cursor_field: "email")
@@ -209,7 +209,7 @@ defmodule EctoCursorTest do
                    end
 
       assert_raise ArgumentError,
-                   "EctoCursor expected `cursor_field` to be an atom or list of atoms or list of tuple {atom, :asc|:desc}, got: [:id, \"email\"].",
+                   "Cursornator expected `cursor_field` to be an atom or list of atoms or list of tuple {atom, :asc|:desc}, got: [:id, \"email\"].",
                    fn ->
                      User
                      |> Repo.cursor_stream(cursor_field: [:id, "email"])
@@ -219,7 +219,7 @@ defmodule EctoCursorTest do
 
     test ":after_cursor must contain fields from `cursor_field`" do
       assert_raise ArgumentError,
-                   "EctoCursor expected `after_cursor` to be a map with fields [:id, :email], got: \"10\".",
+                   "Cursornator expected `after_cursor` to be a map with fields [:id, :email], got: \"10\".",
                    fn ->
                      User
                      |> Repo.cursor_stream(cursor_field: [:id, :email], after_cursor: "10")
@@ -227,7 +227,7 @@ defmodule EctoCursorTest do
                    end
 
       assert_raise ArgumentError,
-                   "EctoCursor expected `after_cursor` to be a map with fields [:id, :email], got: %{emial: \"foo@bar.com\"}.",
+                   "Cursornator expected `after_cursor` to be a map with fields [:id, :email], got: %{emial: \"foo@bar.com\"}.",
                    fn ->
                      User
                      |> Repo.cursor_stream(
@@ -240,7 +240,7 @@ defmodule EctoCursorTest do
 
     test "query must `select` cursor fields" do
       assert_raise RuntimeError,
-                   "EctoCursor query must return a map with cursor field. If you are using custom `select` ensure that all cursor fields are returned as a map, e.g. `select([s], map(s, [:id]))`.",
+                   "Cursornator query must return a map with cursor field. If you are using custom `select` ensure that all cursor fields are returned as a map, e.g. `select([s], map(s, [:id]))`.",
                    fn ->
                      User
                      |> select([u], u.id)
@@ -249,7 +249,7 @@ defmodule EctoCursorTest do
                    end
 
       assert_raise RuntimeError,
-                   "EctoCursor query did not return cursor field :id. If you are using custom `select` ensure that all cursor fields are returned as a map, e.g. `select([s], map(s, [:id, ...]))`.",
+                   "Cursornator query did not return cursor field :id. If you are using custom `select` ensure that all cursor fields are returned as a map, e.g. `select([s], map(s, [:id, ...]))`.",
                    fn ->
                      User
                      |> select([u], %{email: u.email})
@@ -258,7 +258,7 @@ defmodule EctoCursorTest do
                    end
 
       assert_raise RuntimeError,
-                   "EctoCursor query did not return cursor field :id. If you are using custom `select` ensure that all cursor fields are returned as a map, e.g. `select([s], map(s, [:id, ...]))`.",
+                   "Cursornator query did not return cursor field :id. If you are using custom `select` ensure that all cursor fields are returned as a map, e.g. `select([s], map(s, [:id, ...]))`.",
                    fn ->
                      User
                      |> select([u], %{email: u.email})

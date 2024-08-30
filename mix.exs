@@ -1,9 +1,9 @@
-defmodule EctoCursor.MixProject do
+defmodule Cursornator.MixProject do
   use Mix.Project
 
   def project do
     [
-      app: :ecto_cursor,
+      app: :cursornator,
       version: "1.3.0",
       elixir: "~> 1.13",
       elixirc_paths: elixirc_paths(Mix.env()),

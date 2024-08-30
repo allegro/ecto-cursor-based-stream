@@ -2,9 +2,9 @@ import Config
 
 config :logger, level: :warning
 
-config :ecto_cursor, ecto_repos: [TestApp.Repo]
+config :cursornator, ecto_repos: [TestApp.Repo]
 
-config :ecto_cursor, TestApp.Repo,
+config :cursornator, TestApp.Repo,
   username: "postgres",
   password: "postgres",
   database: "test_cursor",
