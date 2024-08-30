@@ -22,6 +22,7 @@ defmodule EctoCursor do
           | {:after_cursor, term() | %{atom() => term()}}
           | {:cursor_field, atom() | [atom()]}
           | {:order, :asc | :desc}
+          | {:parallel, boolean()}
           | {:prefix, String.t()}
           | {:timeout, non_neg_integer()}
           | {:log, false | Logger.level()}
@@ -36,8 +37,8 @@ defmodule EctoCursor do
   In contrast to `Ecto.Repo.stream/2`,
   this will not use database mechanisms (e.g. database transactions) to stream the rows.
 
-  It does so by sorting all the rows by `options[:cursor_field]`
-  and iterating over them in chunks of size `options[:max_rows]`.
+  It does so by sorting all the rows by `:cursor_field` and iterating over them in chunks
+  of size `:max_rows`.
 
   ## Options
 
@@ -63,6 +64,10 @@ defmodule EctoCursor do
 
     Defaults to `:asc`. If list of cursor fields is given with specific order, then this option is ignored.
 
+  * `:parallel` - when `true` fetches next batch of records in parallel to processing the stream.
+
+    Defaults to `false` as this spawns `Task`s and could cause issues e.g. with Ecto Sandbox in tests.
+
   * `:prefix, :timeout, :log, :telemetry_event, :telemetry_options` - options passed directly to `Ecto.Repo.all/2`
 
   ## Examples
@@ -72,7 +77,7 @@ defmodule EctoCursor do
       |> Stream.each(...)
       |> Stream.run()
 
-      # change order
+      # change order, run in parallel
       MyUser
       |> MyRepo.cursor_stream(order: :desc)
       |> Stream.each(...)
@@ -99,6 +104,7 @@ defmodule EctoCursor do
       # select custom fields, remember to add cursor_field to select
       MyUser
       |> select([u], map(u, [:my_id, ...])
+      |> select_merge([u], ...)
       |> MyRepo.cursor_stream(cursor_field: :my_id)
       |> Stream.each(...)
       |> Stream.run()
@@ -134,15 +140,21 @@ defmodule EctoCursor do
   def stream(repo, queryable, options \\ []) do
     %{after_cursor: after_cursor, cursor_fields: cursor_fields} = options = parse_options(options)
 
-    Stream.unfold(after_cursor, fn cursor ->
-      case get_rows(repo, queryable, cursor, options) do
-        [] ->
-          nil
+    Stream.unfold(nil, fn
+      nil ->
+        task = get_rows_task(repo, queryable, after_cursor, options)
+        {[], task}
 
-        rows ->
-          next_cursor = get_last_row_cursor(rows, cursor_fields)
-          {rows, next_cursor}
-      end
+      task ->
+        case options.task_module.await(task) do
+          [] ->
+            nil
+
+          rows ->
+            next_cursor = get_last_row_cursor(rows, cursor_fields)
+            task = get_rows_task(repo, queryable, next_cursor, options)
+            {rows, task}
+        end
     end)
     |> Stream.flat_map(& &1)
   end
@@ -168,6 +180,11 @@ defmodule EctoCursor do
     cursor_field = Keyword.get(options, :cursor_field, :id)
     order = Keyword.get(options, :order, :asc)
 
+    task_module =
+      if Keyword.get(options, :parallel, false),
+        do: Task,
+        else: EctoCursor.TaskSynchronous
+
     repo_opts =
       Keyword.take(options, [:prefix, :timeout, :log, :telemetry_event, :telemetry_options])
 
@@ -180,7 +197,8 @@ defmodule EctoCursor do
       cursor_fields: cursor_fields,
       after_cursor: validate_initial_cursor(cursor_fields, after_cursor),
       order: order,
-      repo_opts: repo_opts
+      repo_opts: repo_opts,
+      task_module: task_module
     }
   end
 
@@ -238,6 +256,21 @@ defmodule EctoCursor do
   defp validate_initial_cursor(cursor_fields, value) do
     raise ArgumentError,
           "EctoCursor expected `after_cursor` to be a map with fields #{inspect(cursor_fields)}, got: #{inspect(value)}."
+  end
+
+  defp get_rows_task(repo, query, cursor, options) do
+    %{cursor_fields: cursor_fields, order: order, max_rows: max_rows, repo_opts: repo_opts} =
+      options
+
+    order_by = Enum.map(order, fn {field, direction} -> {direction, field} end)
+
+    options.task_module.async(fn ->
+      query
+      |> order_by([o], ^order_by)
+      |> apply_cursor_conditions(cursor_fields, cursor, order)
+      |> limit(^max_rows)
+      |> repo.all(repo_opts)
+    end)
   end
 
   defp get_rows(repo, query, cursor, options) do

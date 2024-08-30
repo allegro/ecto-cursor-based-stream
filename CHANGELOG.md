@@ -1,10 +1,13 @@
 ## [Unreleased]
 ### Changed
+
+## [1.2.0] - 2024-08-14
 - allow to iterate over multiple fields in cursor, e.g. `cursor_field: [:id_1, :id_2]`
 - allow multiple fields in starting cursor, e.g. `after_cursor: %{id_1: id1, id_2: id2}`
 - allow ordering or results, e.g. `order: :desc`
 - pass Ecto options to `Ecto.Repo.all/2`
 - raise errors with friendly message on invalid cursor_field, invalid after_cursor and invalid custom select in Ecto query
+- add option to fetch records and process them in parallel, `parallel: true`
 
 ## [1.1.0] - 2024-05-16
 ### Changed

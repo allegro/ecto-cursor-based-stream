@@ -4,10 +4,10 @@ Cursor-based streaming of Ecto records, that does not require database transacti
 
 Advantages in comparison to the standard `Ecto.Repo.stream/2`:
 
-- streaming can be stopped and continued at any point (by passing `opts[:after_cursor]`),
+- streaming can be stopped and continued at any point (by passing option `after_cursor: ...`),
 - works with tables that have milions of records.
 
-Only limitation is that you have to supply a _cursor column_ (by passing `opts[:cursor_field]`, defaults to `:id`). Such a column:
+Only limitation is that you have to supply a _cursor column or columns_ (by passing option `cursor_field: ...`, defaults to `:id`). Such a column(s):
 
 - must have unique values,
 - should have a database index. (So that sorting by it, and returning a number of rows larger than `x` is a performant operation.)
